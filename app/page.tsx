@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { SoundSection } from "@/components/sound-section"
 import { Plus, Volume2, Edit, Eye } from "lucide-react"
+import { supabase } from "@/lib/supabaseClient"
 
 interface SoundData {
   id: string
@@ -61,110 +62,162 @@ const initialSections: Section[] = [
 
 const colors: Array<"cyan" | "orange" | "green" | "purple"> = ["cyan", "orange", "green", "purple"]
 
-const STORAGE_KEY = "sound-effects-board-data"
-
-const saveToLocalStorage = (sections: Section[]) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sections))
-  } catch (error) {
-    console.error("Failed to save to localStorage:", error)
-  }
-}
-
-const loadFromLocalStorage = (): Section[] | null => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    return saved ? JSON.parse(saved) : null
-  } catch (error) {
-    console.error("Failed to load from localStorage:", error)
-    return null
-  }
-}
-
-const convertAudioToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
 export default function SoundEffectsBoard() {
-  const [sections, setSections] = useState<Section[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = loadFromLocalStorage()
-      return saved || initialSections
-    }
-    return initialSections
-  })
+  const [sections, setSections] = useState<Section[]>([])
   const [isEditMode, setIsEditMode] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
 
+  // Load from Supabase (and seed if empty). If DB is not ready, fall back to local initialSections.
   useEffect(() => {
-    saveToLocalStorage(sections)
-  }, [sections])
+    const load = async () => {
+      setIsLoading(true)
 
-  const handleSectionTitleChange = (sectionId: string, newTitle: string) => {
+      const { data: dbSections, error: secErr } = await supabase
+        .from("sections")
+        .select("id,title,color,created_at")
+        .order("created_at", { ascending: true })
+
+      if (secErr) {
+        console.warn("Supabase not available or schema missing; falling back to local data.", secErr)
+        setSections(initialSections)
+        setIsLoading(false)
+        return
+      }
+
+      if (!dbSections || dbSections.length === 0) {
+        for (const s of initialSections) {
+          const { data: ins, error } = await supabase
+            .from("sections")
+            .insert({ title: s.title, color: s.color })
+            .select("id,title,color")
+            .single()
+          if (error || !ins) continue
+
+          const soundsPayload = s.sounds.map((snd, idx) => ({
+            label: snd.label,
+            audio_url: snd.audioUrl ?? null,
+            section_id: ins.id,
+            position: idx,
+          }))
+          await supabase.from("sounds").insert(soundsPayload)
+        }
+      }
+
+      const { data: sectionsData } = await supabase
+        .from("sections")
+        .select("id,title,color,created_at")
+        .order("created_at", { ascending: true })
+
+      const { data: soundsData } = await supabase
+        .from("sounds")
+        .select("id,section_id,label,audio_url,position,created_at")
+        .order("position", { ascending: true })
+
+      const composed: Section[] = (sectionsData || []).map((s) => ({
+        id: s.id as unknown as string,
+        title: s.title as string,
+        color: s.color as Section["color"],
+        sounds: (soundsData || [])
+          .filter((snd) => snd.section_id === s.id)
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((snd) => ({ id: snd.id as unknown as string, label: snd.label as string, audioUrl: (snd.audio_url as string | null) || undefined })),
+      }))
+
+      setSections(composed)
+      setIsLoading(false)
+    }
+
+    load()
+  }, [])
+
+  const handleSectionTitleChange = async (sectionId: string, newTitle: string) => {
     setSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, title: newTitle } : section)))
+    const { error } = await supabase.from("sections").update({ title: newTitle }).eq("id", sectionId)
+    if (error) console.error("Failed to update section title:", error)
   }
 
-  const handleSoundLabelChange = (sectionId: string, soundId: string, newLabel: string) => {
+  const handleSoundLabelChange = async (sectionId: string, soundId: string, newLabel: string) => {
+    setSections((prev) =>
+      prev.map((section) =>
+        section.id === sectionId
+          ? { ...section, sounds: section.sounds.map((sound) => (sound.id === soundId ? { ...sound, label: newLabel } : sound)) }
+          : section,
+      ),
+    )
+    const { error } = await supabase.from("sounds").update({ label: newLabel }).eq("id", soundId)
+    if (error) console.error("Failed to update sound label:", error)
+  }
+
+  const handleSoundAudioChange = async (sectionId: string, soundId: string, audioUrl: string) => {
+    setSections((prev) =>
+      prev.map((section) =>
+        section.id === sectionId
+          ? { ...section, sounds: section.sounds.map((sound) => (sound.id === soundId ? { ...sound, audioUrl } : sound)) }
+          : section,
+      ),
+    )
+    const { error } = await supabase.from("sounds").update({ audio_url: audioUrl }).eq("id", soundId)
+    if (error) console.error("Failed to update sound audio_url:", error)
+  }
+
+  const handleAddSound = async (sectionId: string) => {
+    const { data, error } = await supabase
+      .from("sounds")
+      .insert({ section_id: sectionId, label: "New Sound", position: 9999 })
+      .select("id,label,audio_url,position")
+      .single()
+
+    if (error || !data) {
+      console.warn("Failed to add sound to Supabase; adding locally only.", error)
+      const newSoundId = `local-${Date.now()}`
+      setSections((prev) =>
+        prev.map((section) =>
+          section.id === sectionId
+            ? { ...section, sounds: [...section.sounds, { id: newSoundId, label: "New Sound" }] }
+            : section,
+        ),
+      )
+      return
+    }
+
     setSections((prev) =>
       prev.map((section) =>
         section.id === sectionId
           ? {
               ...section,
-              sounds: section.sounds.map((sound) => (sound.id === soundId ? { ...sound, label: newLabel } : sound)),
+              sounds: [...section.sounds, { id: data.id as unknown as string, label: data.label as string, audioUrl: (data.audio_url as string | null) || undefined }],
             }
           : section,
       ),
     )
   }
 
-  const handleSoundAudioChange = (sectionId: string, soundId: string, audioUrl: string) => {
-    setSections((prev) =>
-      prev.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              sounds: section.sounds.map((sound) => (sound.id === soundId ? { ...sound, audioUrl } : sound)),
-            }
-          : section,
-      ),
-    )
-  }
-
-  const handleAddSound = (sectionId: string) => {
-    const newSoundId = `sound-${Date.now()}`
-    setSections((prev) =>
-      prev.map((section) =>
-        section.id === sectionId
-          ? {
-              ...section,
-              sounds: [...section.sounds, { id: newSoundId, label: "New Sound" }],
-            }
-          : section,
-      ),
-    )
-  }
-
-  const handleAddSection = () => {
-    const newSectionId = `section-${Date.now()}`
+  const handleAddSection = async () => {
     const availableColors = colors.filter((color) => !sections.some((section) => section.color === color))
     const color = availableColors.length > 0 ? availableColors[0] : colors[sections.length % colors.length]
 
-    const newSection: Section = {
-      id: newSectionId,
-      title: "New Section",
-      color,
-      sounds: [{ id: `${newSectionId}-sound-1`, label: "Sample Sound" }],
+    const { data, error } = await supabase
+      .from("sections")
+      .insert({ title: "New Section", color })
+      .select("id,title,color")
+      .single()
+
+    if (error || !data) {
+      console.warn("Failed to add section to Supabase; adding locally only.", error)
+      const newSectionId = `local-${Date.now()}`
+      const newSection: Section = { id: newSectionId, title: "New Section", color, sounds: [] }
+      setSections((prev) => [...prev, newSection])
+      return
     }
 
+    const newSection: Section = { id: data.id as unknown as string, title: data.title as string, color: data.color as Section["color"], sounds: [] }
     setSections((prev) => [...prev, newSection])
   }
 
-  const handleRemoveSection = (sectionId: string) => {
+  const handleRemoveSection = async (sectionId: string) => {
     setSections((prev) => prev.filter((section) => section.id !== sectionId))
+    const { error } = await supabase.from("sections").delete().eq("id", sectionId)
+    if (error) console.error("Failed to remove section:", error)
   }
 
   const handlePlaySound = (soundId: string, audioUrl?: string) => {
@@ -182,7 +235,6 @@ export default function SoundEffectsBoard() {
       }
     }
 
-    // Fallback to beep sound
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const oscillator = audioContext.createOscillator()
@@ -233,24 +285,28 @@ export default function SoundEffectsBoard() {
           </p>
         </header>
 
-        <div className="space-y-6">
-          {sections.map((section) => (
-            <SoundSection
-              key={section.id}
-              id={section.id}
-              title={section.title}
-              color={section.color}
-              sounds={section.sounds}
-              onTitleChange={handleSectionTitleChange}
-              onSoundLabelChange={handleSoundLabelChange}
-              onSoundAudioChange={handleSoundAudioChange}
-              onAddSound={handleAddSound}
-              onRemoveSection={handleRemoveSection}
-              onPlaySound={handlePlaySound}
-              isEditMode={isEditMode}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="text-center text-muted-foreground">Loading…</div>
+        ) : (
+          <div className="space-y-6">
+            {sections.map((section) => (
+              <SoundSection
+                key={section.id}
+                id={section.id}
+                title={section.title}
+                color={section.color}
+                sounds={section.sounds}
+                onTitleChange={handleSectionTitleChange}
+                onSoundLabelChange={handleSoundLabelChange}
+                onSoundAudioChange={handleSoundAudioChange}
+                onAddSound={handleAddSound}
+                onRemoveSection={handleRemoveSection}
+                onPlaySound={handlePlaySound}
+                isEditMode={isEditMode}
+              />
+            ))}
+          </div>
+        )}
 
         {isEditMode && (
           <div className="mt-8 text-center">

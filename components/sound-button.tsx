@@ -86,13 +86,26 @@ export function SoundButton({
     const file = event.target.files?.[0]
     if (file && file.type.startsWith("audio/")) {
       try {
-        const base64Url = await convertAudioToBase64(file)
-        onAudioChange(id, base64Url)
+        const body = new FormData()
+        body.append('file', file)
+        body.append('label', editLabel || label)
+        const res = await fetch('/api/upload-sound', { method: 'POST', body })
+        if (!res.ok) throw new Error('Upload failed')
+        const data = await res.json()
+        if (data?.url) {
+          onAudioChange(id, data.url)
+          return
+        }
+        throw new Error('No URL returned')
       } catch (error) {
-        console.error("Failed to convert audio file:", error)
-        // Fallback to blob URL if base64 conversion fails
-        const url = URL.createObjectURL(file)
-        onAudioChange(id, url)
+        console.error("Upload failed, falling back to base64/blob:", error)
+        try {
+          const base64Url = await convertAudioToBase64(file)
+          onAudioChange(id, base64Url)
+        } catch (_err) {
+          const url = URL.createObjectURL(file)
+          onAudioChange(id, url)
+        }
       }
     }
   }
