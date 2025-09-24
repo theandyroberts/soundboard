@@ -283,7 +283,7 @@ export default function SoundEffectsBoard() {
         <header className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Volume2 className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">Professional Sound Effects Board</h1>
+            <h1 className="text-4xl font-bold text-foreground">Ellyn & Daisy's Sound Board</h1>
             <Button
               onClick={handleToggleMode}
               variant="outline"
@@ -304,7 +304,7 @@ export default function SoundEffectsBoard() {
             </Button>
           </div>
           <p className="text-muted-foreground text-lg">
-            Create, customize, and organize your sound effects with professional-grade controls
+            Create, customize, and organize sounds from STFU Nick Lachey, a Love Is Blind recap podcast
           </p>
         </header>
 
