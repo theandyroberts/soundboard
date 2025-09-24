@@ -260,7 +260,7 @@ export default function SoundEffectsBoard() {
         <header className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Volume2 className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">Ellyn & Daisy's Sound Effects Board</h1>
+            <h1 className="text-4xl font-bold text-foreground">Ellyn & Daisy's Sound Board</h1>
             <Button
               onClick={() => setIsEditMode(!isEditMode)}
               variant="outline"
