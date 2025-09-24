@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { Edit2, Play, Volume2, Upload } from "lucide-react"
+import { Square } from "lucide-react"
 
 interface SoundButtonProps {
   id: string
@@ -56,6 +57,17 @@ export function SoundButton({
 
   const handlePlay = () => {
     if (audioUrl && audioRef.current) {
+      // Toggle stop if already playing
+      if (isPlaying) {
+        try {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+        } finally {
+          setIsPlaying(false)
+        }
+        return
+      }
+
       setIsPlaying(true)
       audioRef.current.currentTime = 0
       audioRef.current
@@ -169,7 +181,7 @@ export function SoundButton({
         variant="outline"
       >
         <div className="flex items-center justify-center gap-2">
-          {isPlaying ? <Volume2 className="h-4 w-4 animate-pulse" /> : <Play className="h-4 w-4" />}
+          {isPlaying ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           <span className="text-balance leading-tight">{label}</span>
         </div>
       </Button>
