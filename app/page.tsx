@@ -6,6 +6,8 @@ import { SoundSection } from "@/components/sound-section"
 import { Plus, Volume2, Edit, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 
+const EDIT_PASSWORD = process.env.NEXT_PUBLIC_EDIT_PASSWORD || "Rockovoix02!"
+
 interface SoundData {
   id: string
   label: string
@@ -64,8 +66,29 @@ const colors: Array<"cyan" | "orange" | "green" | "purple"> = ["cyan", "orange",
 
 export default function SoundEffectsBoard() {
   const [sections, setSections] = useState<Section[]>([])
-  const [isEditMode, setIsEditMode] = useState(true)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  const handleToggleMode = () => {
+    if (!isEditMode) {
+      // about to enable Edit Mode — require password once per session
+      try {
+        const authorized = typeof window !== "undefined" && sessionStorage.getItem("edit-auth") === "1"
+        if (!authorized) {
+          const input = typeof window !== "undefined" ? window.prompt("Enter password to enable Edit Mode") : null
+          if (input !== EDIT_PASSWORD) {
+            if (typeof window !== "undefined") window.alert("Incorrect password")
+            return
+          }
+          if (typeof window !== "undefined") sessionStorage.setItem("edit-auth", "1")
+        }
+      } catch {
+        // ignore prompt/sessionStorage errors, just do nothing
+        return
+      }
+    }
+    setIsEditMode(!isEditMode)
+  }
 
   // Load from Supabase (and seed if empty). If DB is not ready, fall back to local initialSections.
   useEffect(() => {
@@ -260,9 +283,9 @@ export default function SoundEffectsBoard() {
         <header className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Volume2 className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">Ellyn & Daisy's Sound Board</h1>
+            <h1 className="text-4xl font-bold text-foreground">Professional Sound Effects Board</h1>
             <Button
-              onClick={() => setIsEditMode(!isEditMode)}
+              onClick={handleToggleMode}
               variant="outline"
               size="sm"
               className="ml-4 border-primary/30 hover:border-primary hover:bg-primary/10 transition-all duration-200"
@@ -306,6 +329,10 @@ export default function SoundEffectsBoard() {
               />
             ))}
           </div>
+        )}
+
+        {!isEditMode && (
+          <div className="mt-8 text-center text-xs text-muted-foreground">Enter password to enable Edit Mode</div>
         )}
 
         {isEditMode && (
