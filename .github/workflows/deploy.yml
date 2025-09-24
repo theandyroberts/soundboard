@@ -1,0 +1,27 @@
+name: Deploy to ellyndaisy.lol
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/www/ellyndaisy.lol
+            git pull origin main
+            pnpm install --frozen-lockfile
+            pnpm build
+            pm2 restart ellyndaisy
