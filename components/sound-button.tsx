@@ -38,11 +38,11 @@ export function SoundButton({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  const colorClasses = {
-    cyan: "text-neon-cyan border-neon-cyan hover:bg-neon-cyan/10 active:bg-neon-cyan/20",
-    orange: "text-neon-orange border-neon-orange hover:bg-neon-orange/10 active:bg-neon-orange/20",
-    green: "text-neon-green border-neon-green hover:bg-neon-green/10 active:bg-neon-green/20",
-    purple: "text-neon-purple border-neon-purple hover:bg-neon-purple/10 active:bg-neon-purple/20",
+  const colorFillClasses = {
+    cyan: "bg-neon-cyan text-white hover:bg-neon-cyan/90 active:bg-neon-cyan/80 border-neon-cyan",
+    orange: "bg-neon-orange text-white hover:bg-neon-orange/90 active:bg-neon-orange/80 border-neon-orange",
+    green: "bg-neon-green text-white hover:bg-neon-green/90 active:bg-neon-green/80 border-neon-green",
+    purple: "bg-neon-purple text-white hover:bg-neon-purple/90 active:bg-neon-purple/80 border-neon-purple",
   }
 
   const handleSave = () => {
@@ -57,7 +57,6 @@ export function SoundButton({
 
   const handlePlay = () => {
     if (audioUrl && audioRef.current) {
-      // Toggle stop if already playing
       if (isPlaying) {
         try {
           audioRef.current.pause()
@@ -173,12 +172,12 @@ export function SoundButton({
       <Button
         onClick={handlePlay}
         className={cn(
-          "h-20 w-full font-bold text-sm transition-all duration-200 bg-card/50 border-2 backdrop-blur-sm",
-          "hover:scale-105 active:scale-95",
-          colorClasses[color],
-          isPlaying && "neon-glow-sm animate-pulse",
+          "h-20 w-full font-extrabold text-sm transition-all duration-200 border-2",
+          "hover:scale-[1.03] active:scale-95",
+          colorFillClasses[color],
+          isPlaying && "ring-4 ring-white/50",
         )}
-        variant="outline"
+        variant="default"
       >
         <div className="flex items-center justify-center gap-2">
           {isPlaying ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}

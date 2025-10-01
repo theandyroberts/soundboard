@@ -43,18 +43,12 @@ export function SoundSection({
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(title)
 
-  const colorClasses = {
-    cyan: "border-neon-cyan/30 bg-neon-cyan/5",
-    orange: "border-neon-orange/30 bg-neon-orange/5",
-    green: "border-neon-green/30 bg-neon-green/5",
-    purple: "border-neon-purple/30 bg-neon-purple/5",
-  }
-
+  // Lighter section container; keep subtle colored title accent
   const titleColorClasses = {
-    cyan: "text-neon-cyan drop-shadow-sm",
-    orange: "text-neon-orange drop-shadow-sm",
-    green: "text-neon-green drop-shadow-sm",
-    purple: "text-neon-purple drop-shadow-sm",
+    cyan: "text-neon-cyan",
+    orange: "text-neon-orange",
+    green: "text-neon-green",
+    purple: "text-neon-purple",
   }
 
   const handleSaveTitle = () => {
@@ -67,8 +61,11 @@ export function SoundSection({
     setIsEditingTitle(false)
   }
 
+  // Cycle per-button colors across red(=purple token), blue(cyan), yellow(orange), green
+  const cycle: Array<"purple" | "cyan" | "orange" | "green"> = ["purple", "cyan", "orange", "green"]
+
   return (
-    <div className={cn("rounded-lg border-2 p-4 backdrop-blur-sm", colorClasses[color])}>
+    <div className={cn("rounded-xl border bg-card p-5 shadow-sm")}> 
       <div className="flex items-center justify-between mb-4">
         {isEditingTitle && isEditMode ? (
           <Input
@@ -86,7 +83,7 @@ export function SoundSection({
           <div className="flex items-center gap-2 group">
             <h2
               className={cn(
-                "font-bold text-lg px-3 py-1 rounded-md bg-background/80 backdrop-blur-sm border border-border/50",
+                "font-extrabold text-lg px-3 py-1 rounded-md bg-white border border-border",
                 titleColorClasses[color],
               )}
             >
@@ -117,14 +114,14 @@ export function SoundSection({
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
-        {sounds.map((sound) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+        {sounds.map((sound, idx) => (
           <SoundButton
             key={sound.id}
             id={sound.id}
             label={sound.label}
             audioUrl={sound.audioUrl}
-            color={color}
+            color={cycle[idx % cycle.length] as any}
             onLabelChange={(soundId, newLabel) => onSoundLabelChange(id, soundId, newLabel)}
             onAudioChange={(soundId, audioUrl) => onSoundAudioChange(id, soundId, audioUrl)}
             onPlay={onPlaySound}
@@ -141,8 +138,6 @@ export function SoundSection({
             "w-full border-dashed border-2 h-12 transition-all duration-200",
             "hover:scale-105 active:scale-95",
             titleColorClasses[color],
-            `border-${color === "cyan" ? "neon-cyan" : color === "orange" ? "neon-orange" : color === "green" ? "neon-green" : "neon-purple"}/50`,
-            `hover:bg-${color === "cyan" ? "neon-cyan" : color === "orange" ? "neon-orange" : color === "green" ? "neon-green" : "neon-purple"}/10`,
           )}
         >
           <Plus className="h-4 w-4 mr-2" />
