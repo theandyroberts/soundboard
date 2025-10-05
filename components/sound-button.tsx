@@ -6,16 +6,27 @@ import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { Edit2, Play, Volume2, Upload } from "lucide-react"
+import { Edit2, Play, Upload } from "lucide-react"
 import { Square } from "lucide-react"
+
+interface SoundMeta {
+  country?: "US" | "UK"
+  showUrl?: string
+  episodeUrl?: string
+  seasonEpisode?: string
+  actors?: Array<"Ellyn" | "Daisy" | "Nick" | "Vanessa" | "Cast">
+  nsfw?: boolean
+}
 
 interface SoundButtonProps {
   id: string
   label: string
   color: "cyan" | "orange" | "green" | "purple"
   audioUrl?: string
+  meta?: SoundMeta
   onLabelChange: (id: string, newLabel: string) => void
   onAudioChange: (id: string, audioUrl: string) => void
+  onMetaChange?: (id: string, meta: Partial<SoundMeta>) => void
   onPlay: (id: string, audioUrl?: string) => void
   isEditMode: boolean
   className?: string
@@ -26,8 +37,10 @@ export function SoundButton({
   label,
   color,
   audioUrl,
+  meta,
   onLabelChange,
   onAudioChange,
+  onMetaChange,
   onPlay,
   isEditMode,
   className,
@@ -129,7 +142,7 @@ export function SoundButton({
 
   if (isEditing && isEditMode) {
     return (
-      <div className={cn("relative space-y-2", className)}>
+      <div className={cn("relative space-y-3", className)}>
         <Input
           value={editLabel}
           onChange={(e) => setEditLabel(e.target.value)}
@@ -137,11 +150,86 @@ export function SoundButton({
             if (e.key === "Enter") handleSave()
             if (e.key === "Escape") handleCancel()
           }}
-          className="h-16 text-center font-bold text-sm bg-card border-2"
-          maxLength={25}
+          className="h-14 text-center font-bold text-sm bg-card border-2"
+          maxLength={40}
           autoFocus
           placeholder="Button label"
         />
+
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <div className="font-semibold mb-1">Country</div>
+            <select
+              defaultValue={meta?.country || "US"}
+              onChange={(e) => onMetaChange?.(id, { country: e.target.value as any })}
+              className="w-full rounded-md border px-2 py-1 bg-white"
+            >
+              <option value="US">US</option>
+              <option value="UK">UK</option>
+            </select>
+          </div>
+          <div>
+            <div className="font-semibold mb-1">Season / Episode</div>
+            <Input
+              defaultValue={meta?.seasonEpisode || ""}
+              onChange={(e) => onMetaChange?.(id, { seasonEpisode: e.target.value })}
+              className="h-8"
+              placeholder="S01 EP01"
+            />
+          </div>
+          <div className="col-span-2">
+            <div className="font-semibold mb-1">Show URL</div>
+            <Input
+              defaultValue={meta?.showUrl || ""}
+              onChange={(e) => onMetaChange?.(id, { showUrl: e.target.value })}
+              className="h-8"
+              placeholder="https://…"
+            />
+          </div>
+          <div className="col-span-2">
+            <div className="font-semibold mb-1">Episode URL</div>
+            <Input
+              defaultValue={meta?.episodeUrl || ""}
+              onChange={(e) => onMetaChange?.(id, { episodeUrl: e.target.value })}
+              className="h-8"
+              placeholder="https://…"
+            />
+          </div>
+          <div className="col-span-2">
+            <div className="font-semibold mb-1">Featured</div>
+            <div className="flex flex-wrap gap-3">
+              {(["Ellyn","Daisy","Nick","Vanessa","Cast"] as const).map((name) => {
+                const checked = (meta?.actors || []).includes(name)
+                return (
+                  <label key={name} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      defaultChecked={checked}
+                      onChange={(e) => {
+                        const current = new Set(meta?.actors || [])
+                        if (e.target.checked) current.add(name)
+                        else current.delete(name)
+                        onMetaChange?.(id, { actors: Array.from(current) as any })
+                      }}
+                    />
+                    <span>{name}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                defaultChecked={meta?.nsfw ?? true}
+                onChange={(e) => onMetaChange?.(id, { nsfw: e.target.checked })}
+              />
+              NSFW
+            </label>
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button
             onMouseDown={handleAudioButtonClick}

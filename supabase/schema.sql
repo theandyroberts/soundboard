@@ -15,6 +15,7 @@ create table if not exists public.sounds (
 	section_id uuid not null references public.sections(id) on delete cascade,
 	label text not null,
 	audio_url text,
+	meta jsonb not null default '{}'::jsonb,
 	position int not null default 0,
 	created_at timestamptz not null default now()
 );

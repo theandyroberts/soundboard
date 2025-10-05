@@ -7,10 +7,20 @@ import { SoundButton } from "./sound-button"
 import { cn } from "@/lib/utils"
 import { Plus, Edit2, Trash2 } from "lucide-react"
 
+interface SoundMeta {
+  country?: "US" | "UK"
+  showUrl?: string
+  episodeUrl?: string
+  seasonEpisode?: string
+  actors?: Array<"Ellyn" | "Daisy" | "Nick" | "Vanessa" | "Cast">
+  nsfw?: boolean
+}
+
 interface SoundData {
   id: string
   label: string
   audioUrl?: string
+  meta?: SoundMeta
 }
 
 interface SoundSectionProps {
@@ -25,6 +35,7 @@ interface SoundSectionProps {
   onRemoveSection: (id: string) => void
   onPlaySound: (soundId: string) => void
   isEditMode: boolean
+  onSoundMetaChange?: (sectionId: string, soundId: string, meta: Partial<SoundMeta>) => void
 }
 
 export function SoundSection({
@@ -39,6 +50,7 @@ export function SoundSection({
   onRemoveSection,
   onPlaySound,
   isEditMode,
+  onSoundMetaChange,
 }: SoundSectionProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(title)
@@ -124,6 +136,8 @@ export function SoundSection({
             color={cycle[idx % cycle.length] as any}
             onLabelChange={(soundId, newLabel) => onSoundLabelChange(id, soundId, newLabel)}
             onAudioChange={(soundId, audioUrl) => onSoundAudioChange(id, soundId, audioUrl)}
+            onMetaChange={onSoundMetaChange ? (soundId, meta) => onSoundMetaChange(id, soundId, meta) : undefined}
+            meta={sound.meta}
             onPlay={onPlaySound}
             isEditMode={isEditMode}
           />

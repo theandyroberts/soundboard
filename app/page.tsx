@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { SoundSection } from "@/components/sound-section"
 import { Plus, Volume2, Edit, Eye } from "lucide-react"
@@ -8,10 +8,20 @@ import { supabase } from "@/lib/supabaseClient"
 
 const EDIT_PASSWORD = process.env.NEXT_PUBLIC_EDIT_PASSWORD || "Rockovoix02!"
 
+interface SoundMeta {
+  country?: "US" | "UK"
+  showUrl?: string
+  episodeUrl?: string
+  seasonEpisode?: string
+  actors?: Array<"Ellyn" | "Daisy" | "Nick" | "Vanessa" | "Cast">
+  nsfw?: boolean
+}
+
 interface SoundData {
   id: string
   label: string
   audioUrl?: string
+  meta?: SoundMeta
 }
 
 interface Section {
@@ -24,40 +34,13 @@ interface Section {
 const initialSections: Section[] = [
   {
     id: "function",
-    title: "Function",
+    title: "Top Sounds",
     color: "cyan",
     sounds: [
-      { id: "keynote", label: "Keynote" },
-      { id: "social-shake", label: "Social Shake" },
+      { id: "keynote", label: "Nobody Cares ppp" },
+      { id: "welcome", label: "Welcome to our Podcast" },
       { id: "good-brother", label: "Good Brother" },
       { id: "bayonet", label: "Bayonet" },
-    ],
-  },
-  {
-    id: "special-effects",
-    title: "Special Effects",
-    color: "orange",
-    sounds: [
-      { id: "applause", label: "Applause" },
-      { id: "laughter", label: "Laughter" },
-      { id: "kiss", label: "Kiss" },
-      { id: "thanks", label: "Thanks" },
-      { id: "welcome", label: "Welcome" },
-      { id: "hit-him", label: "Hit Him" },
-      { id: "ouch", label: "Ouch" },
-      { id: "too-hard", label: "Too Hard" },
-      { id: "follow", label: "Follow" },
-    ],
-  },
-  {
-    id: "music-controls",
-    title: "Music Controls",
-    color: "green",
-    sounds: [
-      { id: "play-pause", label: "Play/Pause" },
-      { id: "next-track", label: "Next Track" },
-      { id: "previous", label: "Previous" },
-      { id: "volume-up", label: "Volume Up" },
     ],
   },
 ]
@@ -69,9 +52,13 @@ export default function SoundEffectsBoard() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Active row metadata panel state
+  const [activeRow, setActiveRow] = useState<string | null>(null)
+  const [activeSound, setActiveSound] = useState<SoundData | null>(null)
+  const [isMetaHover, setIsMetaHover] = useState(false)
+
   const handleToggleMode = () => {
     if (!isEditMode) {
-      // about to enable Edit Mode — require password once per session
       try {
         const authorized = typeof window !== "undefined" && sessionStorage.getItem("edit-auth") === "1"
         if (!authorized) {
@@ -83,7 +70,6 @@ export default function SoundEffectsBoard() {
           if (typeof window !== "undefined") sessionStorage.setItem("edit-auth", "1")
         }
       } catch {
-        // ignore prompt/sessionStorage errors, just do nothing
         return
       }
     }
@@ -119,6 +105,7 @@ export default function SoundEffectsBoard() {
           const soundsPayload = s.sounds.map((snd, idx) => ({
             label: snd.label,
             audio_url: snd.audioUrl ?? null,
+            meta: snd.meta ?? {},
             section_id: ins.id,
             position: idx,
           }))
@@ -133,7 +120,7 @@ export default function SoundEffectsBoard() {
 
       const { data: soundsData } = await supabase
         .from("sounds")
-        .select("id,section_id,label,audio_url,position,created_at")
+        .select("id,section_id,label,audio_url,meta,position,created_at")
         .order("position", { ascending: true })
 
       const composed: Section[] = (sectionsData || []).map((s) => ({
@@ -143,7 +130,7 @@ export default function SoundEffectsBoard() {
         sounds: (soundsData || [])
           .filter((snd) => snd.section_id === s.id)
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-          .map((snd) => ({ id: snd.id as unknown as string, label: snd.label as string, audioUrl: (snd.audio_url as string | null) || undefined })),
+          .map((snd) => ({ id: snd.id as unknown as string, label: snd.label as string, audioUrl: (snd.audio_url as string | null) || undefined, meta: (snd.meta as any) || {} })),
       }))
 
       setSections(composed)
@@ -183,11 +170,26 @@ export default function SoundEffectsBoard() {
     if (error) console.error("Failed to update sound audio_url:", error)
   }
 
+  const handleSoundMetaChange = async (sectionId: string, soundId: string, meta: Partial<SoundMeta>) => {
+    setSections((prev) =>
+      prev.map((section) =>
+        section.id === sectionId
+          ? {
+              ...section,
+              sounds: section.sounds.map((sound) => (sound.id === soundId ? { ...sound, meta: { ...(sound.meta || {}), ...meta } } : sound)),
+            }
+          : section,
+      ),
+    )
+    const { error } = await supabase.from("sounds").update({ meta }).eq("id", soundId)
+    if (error) console.error("Failed to update sound meta:", error)
+  }
+
   const handleAddSound = async (sectionId: string) => {
     const { data, error } = await supabase
       .from("sounds")
-      .insert({ section_id: sectionId, label: "New Sound", position: 9999 })
-      .select("id,label,audio_url,position")
+      .insert({ section_id: sectionId, label: "New Sound", meta: { nsfw: true }, position: 9999 })
+      .select("id,label,audio_url,meta,position")
       .single()
 
     if (error || !data) {
@@ -196,7 +198,7 @@ export default function SoundEffectsBoard() {
       setSections((prev) =>
         prev.map((section) =>
           section.id === sectionId
-            ? { ...section, sounds: [...section.sounds, { id: newSoundId, label: "New Sound" }] }
+            ? { ...section, sounds: [...section.sounds, { id: newSoundId, label: "New Sound", meta: { nsfw: true } }] }
             : section,
         ),
       )
@@ -208,7 +210,7 @@ export default function SoundEffectsBoard() {
         section.id === sectionId
           ? {
               ...section,
-              sounds: [...section.sounds, { id: data.id as unknown as string, label: data.label as string, audioUrl: (data.audio_url as string | null) || undefined }],
+              sounds: [...section.sounds, { id: data.id as unknown as string, label: data.label as string, audioUrl: (data.audio_url as string | null) || undefined, meta: (data.meta as any) || {} }],
             }
           : section,
       ),
@@ -244,7 +246,11 @@ export default function SoundEffectsBoard() {
   }
 
   const handlePlaySound = (soundId: string, audioUrl?: string) => {
-    console.log(`Playing sound: ${soundId}`)
+    // find the section row of this sound
+    const section = sections.find((sec) => sec.sounds.some((s) => s.id === soundId))
+    const sound = section?.sounds.find((s) => s.id === soundId) || null
+    setActiveRow(section?.id || null)
+    setActiveSound(sound)
 
     if (audioUrl) {
       try {
@@ -252,6 +258,11 @@ export default function SoundEffectsBoard() {
         audio.play().catch((error) => {
           console.error("Failed to play audio:", error)
         })
+        audio.onended = () => {
+          // delay hide except if hovered
+          const hide = () => setActiveRow((prev) => (isMetaHover ? prev : null))
+          setTimeout(hide, 1500)
+        }
         return
       } catch (error) {
         console.error("Failed to create audio element:", error)
@@ -272,6 +283,10 @@ export default function SoundEffectsBoard() {
 
       oscillator.start(audioContext.currentTime)
       oscillator.stop(audioContext.currentTime + 0.5)
+
+      setTimeout(() => {
+        if (!isMetaHover) setActiveRow(null)
+      }, 1500)
     } catch (error) {
       console.log("Audio playback not supported")
     }
@@ -313,20 +328,59 @@ export default function SoundEffectsBoard() {
         ) : (
           <div className="space-y-6">
             {sections.map((section) => (
-              <SoundSection
-                key={section.id}
-                id={section.id}
-                title={section.title}
-                color={section.color}
-                sounds={section.sounds}
-                onTitleChange={handleSectionTitleChange}
-                onSoundLabelChange={handleSoundLabelChange}
-                onSoundAudioChange={handleSoundAudioChange}
-                onAddSound={handleAddSound}
-                onRemoveSection={handleRemoveSection}
-                onPlaySound={handlePlaySound}
-                isEditMode={isEditMode}
-              />
+              <div key={section.id} className="space-y-3">
+                <SoundSection
+                  id={section.id}
+                  title={section.title}
+                  color={section.color}
+                  sounds={section.sounds}
+                  onTitleChange={handleSectionTitleChange}
+                  onSoundLabelChange={handleSoundLabelChange}
+                  onSoundAudioChange={handleSoundAudioChange}
+                  onAddSound={handleAddSound}
+                  onRemoveSection={handleRemoveSection}
+                  onPlaySound={handlePlaySound}
+                  isEditMode={isEditMode}
+                />
+
+                {activeRow === section.id && activeSound && (
+                  <div
+                    onMouseEnter={() => setIsMetaHover(true)}
+                    onMouseLeave={() => setIsMetaHover(false)}
+                    onClick={() => setIsMetaHover(true)}
+                    className="w-full rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-900 px-6 py-5 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="text-xl font-extrabold">{activeSound.label}</div>
+                      <div className="text-xs uppercase tracking-wide text-amber-700">
+                        {activeSound.meta?.nsfw ? "NSFW" : "SFW"}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <div className="font-semibold">Country</div>
+                        <div>{activeSound.meta?.country || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold">Season / Episode</div>
+                        <div>{activeSound.meta?.seasonEpisode || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold">Featured</div>
+                        <div>{(activeSound.meta?.actors || []).join(", ") || "—"}</div>
+                      </div>
+                      <div className="md:col-span-3 flex flex-wrap gap-4 mt-1">
+                        {activeSound.meta?.showUrl && (
+                          <a className="text-blue-700 underline font-semibold" href={activeSound.meta.showUrl} target="_blank" rel="noreferrer">Show Link</a>
+                        )}
+                        {activeSound.meta?.episodeUrl && (
+                          <a className="text-blue-700 underline font-semibold" href={activeSound.meta.episodeUrl} target="_blank" rel="noreferrer">Episode Link</a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
