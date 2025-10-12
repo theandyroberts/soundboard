@@ -59,7 +59,7 @@ export default function SoundEffectsBoard() {
   // Filters
   const [filterCountry, setFilterCountry] = useState<CountryFilter>("ALL")
   const [filterActors, setFilterActors] = useState<Set<Actor>>(new Set())
-  const [filterNSFWOnly, setFilterNSFWOnly] = useState(false)
+  const [filterSFWOnly, setFilterSFWOnly] = useState(false)
 
   // Active row metadata panel state
   const [activeRow, setActiveRow] = useState<string | null>(null)
@@ -390,7 +390,8 @@ export default function SoundEffectsBoard() {
       sounds: sec.sounds.filter((s) => {
         const m = s.meta || {}
         if (filterCountry !== "ALL" && m.country && m.country !== filterCountry) return false
-        if (filterNSFWOnly && !m.nsfw) return false
+        // SFW only: when active, exclude sounds marked NSFW
+        if (filterSFWOnly && m.nsfw) return false
         if (hasActorFilter) {
           const inSound = new Set((m.actors || []) as Actor[])
           const any = actorsSelected.some((a) => inSound.has(a))
@@ -399,7 +400,7 @@ export default function SoundEffectsBoard() {
         return true
       }),
     }))
-  }, [sections, filterCountry, filterActors, filterNSFWOnly])
+  }, [sections, filterCountry, filterActors, filterSFWOnly])
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -473,14 +474,14 @@ export default function SoundEffectsBoard() {
             })}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">NSFW only:</span>
+            <span className="text-sm font-semibold">SFW only:</span>
             <Button
               size="sm"
-              variant={filterNSFWOnly ? "default" : "outline"}
-              className={filterNSFWOnly ? "bg-red-500 border-red-500" : ""}
-              onClick={() => setFilterNSFWOnly((v) => !v)}
+              variant={filterSFWOnly ? "default" : "outline"}
+              className={filterSFWOnly ? "bg-green-600 border-green-600" : ""}
+              onClick={() => setFilterSFWOnly((v) => !v)}
             >
-              {filterNSFWOnly ? "On" : "Off"}
+              {filterSFWOnly ? "On" : "Off"}
             </Button>
           </div>
         </div>
