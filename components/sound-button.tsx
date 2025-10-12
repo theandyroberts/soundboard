@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { Edit2, Play, Upload } from "lucide-react"
-import { Square } from "lucide-react"
 
 interface SoundMeta {
   country?: "US" | "UK"
@@ -47,9 +46,7 @@ export function SoundButton({
 }: SoundButtonProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editLabel, setEditLabel] = useState(label)
-  const [isPlaying, setIsPlaying] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
 
   const colorFillClasses = {
     cyan: "bg-neon-cyan text-white hover:bg-neon-cyan/90 active:bg-neon-cyan/80 border-neon-cyan",
@@ -69,32 +66,7 @@ export function SoundButton({
   }
 
   const handlePlay = () => {
-    if (audioUrl && audioRef.current) {
-      if (isPlaying) {
-        try {
-          audioRef.current.pause()
-          audioRef.current.currentTime = 0
-        } finally {
-          setIsPlaying(false)
-        }
-        return
-      }
-
-      setIsPlaying(true)
-      audioRef.current.currentTime = 0
-      audioRef.current
-        .play()
-        .then(() => {
-          audioRef.current!.onended = () => setIsPlaying(false)
-        })
-        .catch(() => {
-          setIsPlaying(false)
-        })
-    } else {
-      setIsPlaying(true)
-      onPlay(id, audioUrl)
-      setTimeout(() => setIsPlaying(false), 1000)
-    }
+    onPlay(id, audioUrl)
   }
 
   const convertAudioToBase64 = (file: File): Promise<string> => {
@@ -255,7 +227,6 @@ export function SoundButton({
 
   return (
     <div className={cn("relative group", className)}>
-      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
 
       <Button
         onClick={handlePlay}
@@ -263,12 +234,11 @@ export function SoundButton({
           "h-20 w-full font-extrabold text-sm transition-all duration-200 border-2",
           "hover:scale-[1.03] active:scale-95",
           colorFillClasses[color],
-          isPlaying && "ring-4 ring-white/50",
         )}
         variant="default"
       >
         <div className="flex items-center justify-center gap-2">
-          {isPlaying ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          <Play className="h-4 w-4" />
           <span className="text-balance leading-tight">{label}</span>
         </div>
       </Button>
