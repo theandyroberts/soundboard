@@ -129,10 +129,45 @@ export default function SoundEffectsBoard() {
         .select("id,title,color,created_at")
         .order("created_at", { ascending: true })
 
-      const { data: soundsData } = await supabase
+      let { data: soundsData } = await supabase
         .from("sounds")
         .select("id,section_id,label,audio_url,meta,position,created_at")
         .order("position", { ascending: true })
+
+      // If there are sections but no sounds, auto-seed from /api/sounds
+      if ((sectionsData && sectionsData.length > 0) && (!soundsData || soundsData.length === 0)) {
+        try {
+          const res = await fetch("/api/sounds")
+          const json = await res.json().catch(() => ({ items: [] }))
+          const items: Array<{ name: string; url: string }> = json?.items || []
+
+          if (items.length > 0) {
+            const top = sectionsData.find((s) => s.title?.toLowerCase() === "top sounds") || sectionsData[0]
+            const toLabel = (name: string) =>
+              name
+                .replace(/\.[^.]+$/, "")
+                .replace(/[-_]+/g, " ")
+                .replace(/\b\w/g, (m) => m.toUpperCase())
+
+            const payload = items.map((it, idx) => ({
+              section_id: top.id,
+              label: toLabel(it.name),
+              audio_url: it.url,
+              meta: { nsfw: true },
+              position: idx,
+            }))
+            await supabase.from("sounds").insert(payload)
+
+            const refreshed = await supabase
+              .from("sounds")
+              .select("id,section_id,label,audio_url,meta,position,created_at")
+              .order("position", { ascending: true })
+            soundsData = refreshed.data || []
+          }
+        } catch (e) {
+          console.warn("Auto-seed from /api/sounds failed", e)
+        }
+      }
 
       const composed: Section[] = (sectionsData || []).map((s) => ({
         id: s.id as unknown as string,
