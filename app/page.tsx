@@ -433,58 +433,60 @@ export default function SoundEffectsBoard() {
           </p>
         </header>
 
-        {/* Filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-3 justify-center">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">Country:</span>
-            {(["ALL","US","UK"] as const).map((c) => (
-              <Button
-                key={c}
-                size="sm"
-                variant={filterCountry === c ? "default" : "outline"}
-                className={filterCountry === c ? "bg-amber-500 border-amber-500" : ""}
-                onClick={() => setFilterCountry(c)}
-              >
-                {c}
-              </Button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">Actors:</span>
-            {(["Ellyn","Daisy","Nick","Vanessa","Cast"] as const).map((name) => {
-              const active = filterActors.has(name)
-              return (
+        {/* Filters - visible only in Edit Mode for now */}
+        {isEditMode && (
+          <div className="mb-6 flex flex-wrap items-center gap-3 justify-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Country:</span>
+              {(["ALL","US","UK"] as const).map((c) => (
                 <Button
-                  key={name}
+                  key={c}
                   size="sm"
-                  variant={active ? "default" : "outline"}
-                  className={active ? "bg-blue-600 border-blue-600" : ""}
-                  onClick={() => {
-                    setFilterActors((prev) => {
-                      const next = new Set(prev)
-                      if (next.has(name)) next.delete(name)
-                      else next.add(name)
-                      return next
-                    })
-                  }}
+                  variant={filterCountry === c ? "default" : "outline"}
+                  className={filterCountry === c ? "bg-amber-500 border-amber-500" : ""}
+                  onClick={() => setFilterCountry(c)}
                 >
-                  {name}
+                  {c}
                 </Button>
-              )
-            })}
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Actors:</span>
+              {(["Ellyn","Daisy","Nick","Vanessa","Cast"] as const).map((name) => {
+                const active = filterActors.has(name)
+                return (
+                  <Button
+                    key={name}
+                    size="sm"
+                    variant={active ? "default" : "outline"}
+                    className={active ? "bg-blue-600 border-blue-600" : ""}
+                    onClick={() => {
+                      setFilterActors((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(name)) next.delete(name)
+                        else next.add(name)
+                        return next
+                      })
+                    }}
+                  >
+                    {name}
+                  </Button>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">SFW only:</span>
+              <Button
+                size="sm"
+                variant={filterSFWOnly ? "default" : "outline"}
+                className={filterSFWOnly ? "bg-green-600 border-green-600" : ""}
+                onClick={() => setFilterSFWOnly((v) => !v)}
+              >
+                {filterSFWOnly ? "On" : "Off"}
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">SFW only:</span>
-            <Button
-              size="sm"
-              variant={filterSFWOnly ? "default" : "outline"}
-              className={filterSFWOnly ? "bg-green-600 border-green-600" : ""}
-              onClick={() => setFilterSFWOnly((v) => !v)}
-            >
-              {filterSFWOnly ? "On" : "Off"}
-            </Button>
-          </div>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="text-center text-muted-foreground">Loading…</div>
