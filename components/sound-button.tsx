@@ -267,12 +267,12 @@ export function SoundButton({
 
       {isSpeechActive && (
         <div className="absolute left-1/2 bottom-full mb-3 w-full -translate-x-1/2 flex justify-center pointer-events-none z-10">
-          <div className="relative w-48 max-w-[80vw] rounded-2xl border border-border bg-white/95 px-3 py-2 text-slate-900 shadow-lg text-xs pointer-events-auto">
+          <div className="relative w-48 max-w-[80vw] rounded-2xl border border-border bg-white/95 px-3 py-2 text-slate-900 shadow-lg text-xs pointer-events-none">
             <div className="mb-1 text-[10px] uppercase tracking-[0.35em] text-slate-500">Now playing</div>
             <div className="text-sm font-semibold leading-snug">{label}</div>
             <div className="mt-1">
               {meta?.episodeUrl ? (
-                <a className="text-sm font-semibold text-blue-600 underline" href={meta.episodeUrl} target="_blank" rel="noreferrer">
+                <a className="text-sm font-semibold text-blue-600 underline pointer-events-auto" href={meta.episodeUrl} target="_blank" rel="noreferrer">
                   Episode link
                 </a>
               ) : (
@@ -281,7 +281,7 @@ export function SoundButton({
             </div>
             {meta?.showUrl && (
               <div className="mt-1 text-[11px] text-slate-500">
-                <a className="underline" href={meta.showUrl} target="_blank" rel="noreferrer">
+                <a className="underline pointer-events-auto" href={meta.showUrl} target="_blank" rel="noreferrer">
                   Show link
                 </a>
               </div>
