@@ -46,6 +46,7 @@ export function SoundButton({
   onAudioChange,
   onMetaChange,
   onPlay,
+  onStop,
   isEditMode,
   className,
   isSpeechActive,
