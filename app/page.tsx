@@ -64,6 +64,9 @@ export default function SoundEffectsBoard() {
   // Active row metadata panel state
   const [activeSound, setActiveSound] = useState<SoundData | null>(null)
   const hideTimerRef = useRef<number | null>(null)
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const oscillatorRef = useRef<OscillatorNode | null>(null)
   const [autoEditSoundId, setAutoEditSoundId] = useState<string | null>(null)
   const BUBBLE_DURATION_MS = 3000
 
@@ -186,7 +189,10 @@ export default function SoundEffectsBoard() {
   }, [])
 
   useEffect(() => {
-    return () => clearHideTimer()
+    return () => {
+      clearHideTimer()
+      stopPlayback()
+    }
   }, [])
 
   const handleSectionTitleChange = async (sectionId: string, newTitle: string) => {
@@ -322,33 +328,75 @@ export default function SoundEffectsBoard() {
     }, delay)
   }
 
+  const stopPlayback = (resetActive = true) => {
+    clearHideTimer()
+    if (currentAudioRef.current) {
+      const audio = currentAudioRef.current
+      audio.onended = null
+      audio.pause()
+      audio.currentTime = 0
+      currentAudioRef.current = null
+    }
+    if (oscillatorRef.current) {
+      try {
+        oscillatorRef.current.onended = null
+        oscillatorRef.current.stop()
+      } catch {
+        // oscillator might already be stopped
+      }
+      oscillatorRef.current.disconnect()
+      oscillatorRef.current = null
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {})
+      audioContextRef.current = null
+    }
+    if (resetActive) {
+      setActiveSound(null)
+    }
+  }
+
   const handlePlaySound = (soundId: string, audioUrl?: string) => {
+    if (activeSound?.id === soundId) {
+      stopPlayback(true)
+      return
+    }
+
     const section = sections.find((sec) => sec.sounds.some((s) => s.id === soundId))
     const sound = section?.sounds.find((s) => s.id === soundId) || null
+    if (!sound) return
+
+    stopPlayback(false)
     setActiveSound(sound)
     clearHideTimer()
 
     if (audioUrl) {
       try {
         const audio = new Audio(audioUrl)
+        currentAudioRef.current = audio
         audio.play().catch((error) => {
           console.error("Failed to play audio:", error)
+          currentAudioRef.current = null
           scheduleHide()
         })
         audio.onended = () => {
+          currentAudioRef.current = null
           scheduleHide()
         }
         return
       } catch (error) {
         console.error("Failed to create audio element:", error)
+        currentAudioRef.current = null
         scheduleHide()
       }
     }
 
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      audioContextRef.current = audioContext
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
+      oscillatorRef.current = oscillator
 
       oscillator.connect(gainNode)
       gainNode.connect(audioContext.destination)
@@ -357,14 +405,30 @@ export default function SoundEffectsBoard() {
       gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
 
+      oscillator.onended = () => {
+        oscillatorRef.current = null
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => {})
+          audioContextRef.current = null
+        }
+        scheduleHide()
+      }
+
       oscillator.start(audioContext.currentTime)
       oscillator.stop(audioContext.currentTime + 0.5)
-
-      scheduleHide()
     } catch (error) {
       console.log("Audio playback not supported")
+      oscillatorRef.current = null
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {})
+        audioContextRef.current = null
+      }
       scheduleHide()
     }
+  }
+
+  const handleStopSound = () => {
+    stopPlayback(true)
   }
 
   // Derived filtered sections
@@ -492,6 +556,7 @@ export default function SoundEffectsBoard() {
                   onSoundLabelChange={handleSoundLabelChange}
                   onSoundAudioChange={handleSoundAudioChange}
                   onSoundMetaChange={handleSoundMetaChange}
+                  onStopSound={handleStopSound}
                   onAddSound={handleAddSound}
                   onRemoveSection={handleRemoveSection}
                   onPlaySound={handlePlaySound}

@@ -34,6 +34,7 @@ interface SoundSectionProps {
   onTitleChange: (id: string, newTitle: string) => void
   onSoundLabelChange: (sectionId: string, soundId: string, newLabel: string) => void
   onSoundAudioChange: (sectionId: string, soundId: string, audioUrl: string) => void
+  onStopSound: (soundId: string) => void
   onAddSound: (sectionId: string) => void
   onRemoveSection: (id: string) => void
   onPlaySound: (soundId: string) => void
@@ -52,6 +53,7 @@ export function SoundSection({
   onTitleChange,
   onSoundLabelChange,
   onSoundAudioChange,
+  onStopSound,
   onAddSound,
   onRemoveSection,
   onPlaySound,
@@ -145,6 +147,7 @@ export function SoundSection({
             onMetaChange={onSoundMetaChange ? (soundId, meta) => onSoundMetaChange(id, soundId, meta) : undefined}
             meta={sound.meta}
             onPlay={onPlaySound}
+            onStop={onStopSound}
             isEditMode={isEditMode}
             isSpeechActive={activeSoundId === sound.id}
             forceEditMode={autoEditSoundId === sound.id}

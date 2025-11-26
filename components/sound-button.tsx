@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { Edit2, Play, Upload } from "lucide-react"
+import { Edit2, Play, Square, Upload } from "lucide-react"
 
 interface SoundMeta {
   country?: "US" | "UK"
@@ -27,6 +27,7 @@ interface SoundButtonProps {
   onAudioChange: (id: string, audioUrl: string) => void
   onMetaChange?: (id: string, meta: Partial<SoundMeta>) => void
   onPlay: (id: string, audioUrl?: string) => void
+  onStop?: (id: string) => void
   isEditMode: boolean
   className?: string
   isSpeechActive?: boolean
@@ -82,8 +83,12 @@ export function SoundButton({
     setIsEditing(false)
   }
 
-  const handlePlay = () => {
-    onPlay(id, audioUrl)
+  const handleToggle = () => {
+    if (isSpeechActive) {
+      onStop?.(id)
+    } else {
+      onPlay(id, audioUrl)
+    }
   }
 
   const convertAudioToBase64 = (file: File): Promise<string> => {
@@ -246,7 +251,7 @@ export function SoundButton({
     <div className={cn("relative group", className)}>
 
       <Button
-        onClick={handlePlay}
+        onClick={handleToggle}
         className={cn(
           "h-20 w-full font-extrabold text-sm transition-all duration-200 border-2",
           "hover:scale-[1.03] active:scale-95",
@@ -255,7 +260,7 @@ export function SoundButton({
         variant="default"
       >
         <div className="flex items-center justify-center gap-2">
-          <Play className="h-4 w-4" />
+          {isSpeechActive ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           <span className="text-balance leading-tight">{label}</span>
         </div>
       </Button>
