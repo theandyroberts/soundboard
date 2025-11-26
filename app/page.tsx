@@ -52,6 +52,8 @@ type CountryFilter = "ALL" | "US" | "UK"
 
 type Actor = "Ellyn" | "Daisy" | "Nick" | "Vanessa" | "Cast"
 
+type GtagFunction = (...args: any[]) => void
+
 export default function SoundEffectsBoard() {
   const [sections, setSections] = useState<Section[]>([])
   const [isEditMode, setIsEditMode] = useState(false)
@@ -341,6 +343,19 @@ export default function SoundEffectsBoard() {
     }, delay)
   }
 
+  const emitSoundAnalytics = (eventName: "sound_play" | "sound_stop", sound: SoundData, section?: Section) => {
+    if (typeof window === "undefined") return
+    const gtag = (window as typeof window & { gtag?: GtagFunction }).gtag
+    if (!gtag) return
+    gtag("event", eventName, {
+      event_category: "soundboard",
+      event_label: sound.label,
+      sound_id: sound.id,
+      section_id: section?.id,
+      section_title: section?.title,
+    })
+  }
+
   const stopPlayback = (resetActive = true) => {
     clearHideTimer()
     if (currentAudioRef.current) {
@@ -376,17 +391,19 @@ export default function SoundEffectsBoard() {
   }
 
   const handlePlaySound = (soundId: string, audioUrl?: string) => {
-    if (activeSound?.id === soundId) {
-      stopPlayback(true)
-      return
-    }
-
     const section = sections.find((sec) => sec.sounds.some((s) => s.id === soundId))
     const sound = section?.sounds.find((s) => s.id === soundId) || null
     if (!sound) return
 
+    if (activeSound?.id === soundId) {
+      emitSoundAnalytics("sound_stop", sound, section)
+      stopPlayback(true)
+      return
+    }
+
     stopPlayback(false)
     setActiveSound(sound)
+    emitSoundAnalytics("sound_play", sound, section)
     clearHideTimer()
 
     if (audioUrl) {
@@ -399,6 +416,7 @@ export default function SoundEffectsBoard() {
           scheduleHide()
         })
         audio.onended = () => {
+          emitSoundAnalytics("sound_stop", sound, section)
           currentAudioRef.current = null
           scheduleHide()
         }
@@ -425,6 +443,7 @@ export default function SoundEffectsBoard() {
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
 
       oscillator.onended = () => {
+        emitSoundAnalytics("sound_stop", sound, section)
         oscillatorRef.current = null
         if (audioContextRef.current) {
           audioContextRef.current.close().catch(() => {})
@@ -447,6 +466,10 @@ export default function SoundEffectsBoard() {
   }
 
   const handleStopSound = () => {
+    if (activeSound) {
+      const section = sections.find((sec) => sec.sounds.some((s) => s.id === activeSound.id))
+      emitSoundAnalytics("sound_stop", activeSound, section)
+    }
     stopPlayback(true)
   }
 
