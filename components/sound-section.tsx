@@ -28,6 +28,9 @@ interface SoundSectionProps {
   title: string
   color: "cyan" | "orange" | "green" | "purple"
   sounds: SoundData[]
+  activeSoundId?: string
+  autoEditSoundId?: string | null
+  onSoundEditingStarted?: (soundId: string) => void
   onTitleChange: (id: string, newTitle: string) => void
   onSoundLabelChange: (sectionId: string, soundId: string, newLabel: string) => void
   onSoundAudioChange: (sectionId: string, soundId: string, audioUrl: string) => void
@@ -140,6 +143,9 @@ export function SoundSection({
             meta={sound.meta}
             onPlay={onPlaySound}
             isEditMode={isEditMode}
+            isSpeechActive={activeSoundId === sound.id}
+            forceEditMode={autoEditSoundId === sound.id}
+            onStartEditing={() => onSoundEditingStarted?.(sound.id)}
           />
         ))}
       </div>

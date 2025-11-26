@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -29,6 +29,9 @@ interface SoundButtonProps {
   onPlay: (id: string, audioUrl?: string) => void
   isEditMode: boolean
   className?: string
+  isSpeechActive?: boolean
+  forceEditMode?: boolean
+  onStartEditing?: (id: string) => void
 }
 
 export function SoundButton({
@@ -43,6 +46,9 @@ export function SoundButton({
   onPlay,
   isEditMode,
   className,
+  isSpeechActive,
+  forceEditMode,
+  onStartEditing,
 }: SoundButtonProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editLabel, setEditLabel] = useState(label)
@@ -54,6 +60,17 @@ export function SoundButton({
     green: "bg-neon-green text-white hover:bg-neon-green/90 active:bg-neon-green/80 border-neon-green",
     purple: "bg-neon-purple text-white hover:bg-neon-purple/90 active:bg-neon-purple/80 border-neon-purple",
   }
+
+  const startEditing = useCallback(() => {
+    setIsEditing(true)
+    onStartEditing?.(id)
+  }, [id, onStartEditing])
+
+  useEffect(() => {
+    if (forceEditMode && isEditMode && !isEditing) {
+      startEditing()
+    }
+  }, [forceEditMode, isEditMode, isEditing, startEditing])
 
   const handleSave = () => {
     onLabelChange(id, editLabel)
@@ -150,7 +167,7 @@ export function SoundButton({
             />
           </div>
           <div className="col-span-2">
-            <div className="font-semibold mb-1">Show URL</div>
+            <div className="font-semibold mb-1">Show Link</div>
             <Input
               defaultValue={meta?.showUrl || ""}
               onChange={(e) => onMetaChange?.(id, { showUrl: e.target.value })}
@@ -159,7 +176,7 @@ export function SoundButton({
             />
           </div>
           <div className="col-span-2">
-            <div className="font-semibold mb-1">Episode URL</div>
+            <div className="font-semibold mb-1">Episode Link</div>
             <Input
               defaultValue={meta?.episodeUrl || ""}
               onChange={(e) => onMetaChange?.(id, { episodeUrl: e.target.value })}
@@ -243,9 +260,35 @@ export function SoundButton({
         </div>
       </Button>
 
+      {isSpeechActive && (
+        <div className="absolute left-1/2 bottom-full mb-3 w-full -translate-x-1/2 flex justify-center pointer-events-none z-10">
+          <div className="relative w-48 max-w-[80vw] rounded-2xl border border-border bg-white/95 px-3 py-2 text-slate-900 shadow-lg text-xs">
+            <div className="mb-1 text-[10px] uppercase tracking-[0.35em] text-slate-500">Now playing</div>
+            <div className="text-sm font-semibold leading-snug">{label}</div>
+            <div className="mt-1">
+              {meta?.episodeUrl ? (
+                <a className="text-sm font-semibold text-blue-600 underline" href={meta.episodeUrl} target="_blank" rel="noreferrer">
+                  Episode link
+                </a>
+              ) : (
+                <span className="text-[11px] text-slate-500">Episode info pending</span>
+              )}
+            </div>
+            {meta?.showUrl && (
+              <div className="mt-1 text-[11px] text-slate-500">
+                <a className="underline" href={meta.showUrl} target="_blank" rel="noreferrer">
+                  Show link
+                </a>
+              </div>
+            )}
+            <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-sm border border-border bg-white/95" />
+          </div>
+        </div>
+      )}
+
       {isEditMode && (
         <Button
-          onClick={() => setIsEditing(true)}
+          onClick={startEditing}
           size="sm"
           variant="ghost"
           className="absolute -top-2 -right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-card/80 backdrop-blur-sm"

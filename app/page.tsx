@@ -62,11 +62,10 @@ export default function SoundEffectsBoard() {
   const [filterSFWOnly, setFilterSFWOnly] = useState(false)
 
   // Active row metadata panel state
-  const [activeRow, setActiveRow] = useState<string | null>(null)
   const [activeSound, setActiveSound] = useState<SoundData | null>(null)
-  const [isMetaHover, setIsMetaHover] = useState(false)
   const hideTimerRef = useRef<number | null>(null)
-  const [hasPlaybackEnded, setHasPlaybackEnded] = useState(false)
+  const [autoEditSoundId, setAutoEditSoundId] = useState<string | null>(null)
+  const BUBBLE_DURATION_MS = 3000
 
   const handleToggleMode = () => {
     if (!isEditMode) {
@@ -186,6 +185,10 @@ export default function SoundEffectsBoard() {
     load()
   }, [])
 
+  useEffect(() => {
+    return () => clearHideTimer()
+  }, [])
+
   const handleSectionTitleChange = async (sectionId: string, newTitle: string) => {
     setSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, title: newTitle } : section)))
     const { error } = await supabase.from("sections").update({ title: newTitle }).eq("id", sectionId)
@@ -254,6 +257,7 @@ export default function SoundEffectsBoard() {
             : section,
         ),
       )
+    setAutoEditSoundId(newSoundId)
       return
     }
 
@@ -267,6 +271,13 @@ export default function SoundEffectsBoard() {
           : section,
       ),
     )
+    setAutoEditSoundId(data.id as unknown as string)
+  }
+
+  const handleSoundEditingStarted = (soundId: string) => {
+    if (autoEditSoundId === soundId) {
+      setAutoEditSoundId(null)
+    }
   }
 
   const handleAddSection = async () => {
@@ -297,33 +308,40 @@ export default function SoundEffectsBoard() {
     if (error) console.error("Failed to remove section:", error)
   }
 
-  const handlePlaySound = (soundId: string, audioUrl?: string) => {
-    const section = sections.find((sec) => sec.sounds.some((s) => s.id === soundId))
-    const sound = section?.sounds.find((s) => s.id === soundId) || null
-    setActiveRow(section?.id || null)
-    setActiveSound(sound)
-
+  const clearHideTimer = () => {
     if (hideTimerRef.current) {
       window.clearTimeout(hideTimerRef.current)
       hideTimerRef.current = null
     }
+  }
+
+  const scheduleHide = (delay = BUBBLE_DURATION_MS) => {
+    clearHideTimer()
+    hideTimerRef.current = window.setTimeout(() => {
+      setActiveSound(null)
+    }, delay)
+  }
+
+  const handlePlaySound = (soundId: string, audioUrl?: string) => {
+    const section = sections.find((sec) => sec.sounds.some((s) => s.id === soundId))
+    const sound = section?.sounds.find((s) => s.id === soundId) || null
+    setActiveSound(sound)
+    clearHideTimer()
 
     if (audioUrl) {
-      setHasPlaybackEnded(false)
       try {
         const audio = new Audio(audioUrl)
         audio.play().catch((error) => {
           console.error("Failed to play audio:", error)
+          scheduleHide()
         })
         audio.onended = () => {
-          setHasPlaybackEnded(true)
-          hideTimerRef.current = window.setTimeout(() => {
-            if (!isMetaHover) setActiveRow(null)
-          }, 2000)
+          scheduleHide()
         }
         return
       } catch (error) {
         console.error("Failed to create audio element:", error)
+        scheduleHide()
       }
     }
 
@@ -342,43 +360,11 @@ export default function SoundEffectsBoard() {
       oscillator.start(audioContext.currentTime)
       oscillator.stop(audioContext.currentTime + 0.5)
 
-      setHasPlaybackEnded(true)
-      hideTimerRef.current = window.setTimeout(() => {
-        if (!isMetaHover) setActiveRow(null)
-      }, 2000)
+      scheduleHide()
     } catch (error) {
       console.log("Audio playback not supported")
+      scheduleHide()
     }
-  }
-
-  const handleMetaMouseEnter = () => {
-    setIsMetaHover(true)
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = null
-    }
-  }
-
-  const handleMetaMouseLeave = () => {
-    setIsMetaHover(false)
-    if (hasPlaybackEnded) {
-      if (hideTimerRef.current) {
-        window.clearTimeout(hideTimerRef.current)
-        hideTimerRef.current = null
-      }
-      hideTimerRef.current = window.setTimeout(() => {
-        if (!isMetaHover) setActiveRow(null)
-      }, 2000)
-    }
-  }
-
-  const handleCloseMetaPanel = () => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = null
-    }
-    setActiveRow(null)
-    setActiveSound(null)
   }
 
   // Derived filtered sections
@@ -499,6 +485,9 @@ export default function SoundEffectsBoard() {
                   title={section.title}
                   color={section.color}
                   sounds={section.sounds}
+                  activeSoundId={activeSound?.id ?? undefined}
+                  autoEditSoundId={autoEditSoundId}
+                  onSoundEditingStarted={handleSoundEditingStarted}
                   onTitleChange={handleSectionTitleChange}
                   onSoundLabelChange={handleSoundLabelChange}
                   onSoundAudioChange={handleSoundAudioChange}
@@ -508,49 +497,6 @@ export default function SoundEffectsBoard() {
                   onPlaySound={handlePlaySound}
                   isEditMode={isEditMode}
                 />
-
-                {activeRow === section.id && activeSound && (
-                  <div
-                    onMouseEnter={handleMetaMouseEnter}
-                    onMouseLeave={handleMetaMouseLeave}
-                    onClick={handleMetaMouseEnter}
-                    className="w-full rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-900 px-6 py-5 shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div className="text-xl font-extrabold">{activeSound.label}</div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-xs uppercase tracking-wide text-amber-700">
-                          {activeSound.meta?.nsfw ? "NSFW" : "SFW"}
-                        </div>
-                        <Button size="sm" variant="ghost" onClick={handleCloseMetaPanel} className="h-7 px-2">
-                          Close
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <div className="font-semibold">Country</div>
-                        <div>{activeSound.meta?.country || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="font-semibold">Season / Episode</div>
-                        <div>{activeSound.meta?.seasonEpisode || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="font-semibold">Featured</div>
-                        <div>{(activeSound.meta?.actors || []).join(", ") || "—"}</div>
-                      </div>
-                      <div className="md:col-span-3 flex flex-wrap gap-4 mt-1">
-                        {activeSound.meta?.showUrl && (
-                          <a className="text-blue-700 underline font-semibold" href={activeSound.meta.showUrl} target="_blank" rel="noreferrer">Show Link</a>
-                        )}
-                        {activeSound.meta?.episodeUrl && (
-                          <a className="text-blue-700 underline font-semibold" href={activeSound.meta.episodeUrl} target="_blank" rel="noreferrer">Episode Link</a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
