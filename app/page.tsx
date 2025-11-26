@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { SoundSection } from "@/components/sound-section"
 import { Plus, Volume2, Edit, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
+import { SHOW_URL } from "@/lib/constants"
 
 const EDIT_PASSWORD = process.env.NEXT_PUBLIC_EDIT_PASSWORD || "Rockovoix02!"
 
@@ -37,10 +38,10 @@ const initialSections: Section[] = [
     title: "Top Sounds",
     color: "cyan",
     sounds: [
-      { id: "keynote", label: "Nobody Cares ppp" },
-      { id: "welcome", label: "Welcome to our Podcast" },
-      { id: "good-brother", label: "Good Brother" },
-      { id: "bayonet", label: "Bayonet" },
+      { id: "keynote", label: "Nobody Cares ppp", meta: { showUrl: SHOW_URL } },
+      { id: "welcome", label: "Welcome to our Podcast", meta: { showUrl: SHOW_URL } },
+      { id: "good-brother", label: "Good Brother", meta: { showUrl: SHOW_URL } },
+      { id: "bayonet", label: "Bayonet", meta: { showUrl: SHOW_URL } },
     ],
   },
 ]
@@ -155,7 +156,7 @@ export default function SoundEffectsBoard() {
               section_id: top.id,
               label: toLabel(it.name),
               audio_url: it.url,
-              meta: { nsfw: true },
+              meta: { nsfw: true, showUrl: SHOW_URL },
               position: idx,
             }))
             await supabase.from("sounds").insert(payload)
@@ -178,7 +179,11 @@ export default function SoundEffectsBoard() {
         sounds: (soundsData || [])
           .filter((snd) => snd.section_id === s.id)
           .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-          .map((snd) => ({ id: snd.id as unknown as string, label: snd.label as string, audioUrl: (snd.audio_url as string | null) || undefined, meta: (snd.meta as any) || {} })),
+          .map((snd) => {
+            const rawMeta = ((snd.meta as any) || {}) as SoundMeta
+            const normalizedMeta = { showUrl: SHOW_URL, ...rawMeta }
+            return { id: snd.id as unknown as string, label: snd.label as string, audioUrl: (snd.audio_url as string | null) || undefined, meta: normalizedMeta }
+          }),
       }))
 
       setSections(composed)
@@ -235,7 +240,7 @@ export default function SoundEffectsBoard() {
               ...section,
               sounds: section.sounds.map((sound) => {
                 if (sound.id !== soundId) return sound
-                merged = { ...(sound.meta || {}), ...meta }
+                merged = { showUrl: SHOW_URL, ...(sound.meta || {}), ...meta }
                 return { ...sound, meta: merged }
               }),
             }
@@ -249,7 +254,7 @@ export default function SoundEffectsBoard() {
   const handleAddSound = async (sectionId: string) => {
     const { data, error } = await supabase
       .from("sounds")
-      .insert({ section_id: sectionId, label: "New Sound", meta: { nsfw: true }, position: 9999 })
+      .insert({ section_id: sectionId, label: "New Sound", meta: { nsfw: true, showUrl: SHOW_URL }, position: 9999 })
       .select("id,label,audio_url,meta,position")
       .single()
 
@@ -259,7 +264,7 @@ export default function SoundEffectsBoard() {
       setSections((prev) =>
         prev.map((section) =>
           section.id === sectionId
-            ? { ...section, sounds: [...section.sounds, { id: newSoundId, label: "New Sound", meta: { nsfw: true } }] }
+            ? { ...section, sounds: [...section.sounds, { id: newSoundId, label: "New Sound", meta: { nsfw: true, showUrl: SHOW_URL } }] }
             : section,
         ),
       )
@@ -272,7 +277,15 @@ export default function SoundEffectsBoard() {
         section.id === sectionId
           ? {
               ...section,
-              sounds: [...section.sounds, { id: data.id as unknown as string, label: data.label as string, audioUrl: (data.audio_url as string | null) || undefined, meta: (data.meta as any) || {} }],
+              sounds: [
+                ...section.sounds,
+                {
+                  id: data.id as unknown as string,
+                  label: data.label as string,
+                  audioUrl: (data.audio_url as string | null) || undefined,
+                  meta: { showUrl: SHOW_URL, ...(((data.meta as any) || {}) as SoundMeta) },
+                },
+              ],
             }
           : section,
       ),
