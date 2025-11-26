@@ -335,6 +335,12 @@ export default function SoundEffectsBoard() {
       audio.onended = null
       audio.pause()
       audio.currentTime = 0
+      try {
+        audio.src = ""
+        audio.load()
+      } catch {
+        // no-op: some browsers don't allow clearing src
+      }
       currentAudioRef.current = null
     }
     if (oscillatorRef.current) {
