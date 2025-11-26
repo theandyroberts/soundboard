@@ -28,7 +28,7 @@ interface SoundButtonProps {
   onAudioChange: (id: string, audioUrl: string) => void
   onMetaChange?: (id: string, meta: Partial<SoundMeta>) => void
   onPlay: (id: string, audioUrl?: string) => void
-  onStop?: (id: string) => void
+  onStop?: () => void
   isEditMode: boolean
   className?: string
   isSpeechActive?: boolean
@@ -86,7 +86,7 @@ export function SoundButton({
 
   const handleToggle = () => {
     if (isSpeechActive) {
-      onStop?.(id)
+      onStop?.()
     } else {
       onPlay(id, audioUrl)
     }

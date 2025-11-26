@@ -34,7 +34,7 @@ interface SoundSectionProps {
   onTitleChange: (id: string, newTitle: string) => void
   onSoundLabelChange: (sectionId: string, soundId: string, newLabel: string) => void
   onSoundAudioChange: (sectionId: string, soundId: string, audioUrl: string) => void
-  onStopSound: (soundId: string) => void
+  onStopSound: () => void
   onAddSound: (sectionId: string) => void
   onRemoveSection: (id: string) => void
   onPlaySound: (soundId: string) => void
