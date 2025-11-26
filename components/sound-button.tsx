@@ -282,11 +282,6 @@ export function SoundButton({
                 </a>
               )}
             </div>
-            <div className="mt-1 text-[11px] text-slate-500">
-              <a className="underline pointer-events-auto" href={meta?.showUrl || SHOW_URL} target="_blank" rel="noreferrer">
-                Show link
-              </a>
-            </div>
             <span className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-sm border border-border bg-white/95" />
           </div>
         </div>
